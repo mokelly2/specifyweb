@@ -6,3 +6,4 @@ virtenv
 /local_settings.py
 /secret_key.py
 /attachment_upload/static/attachments
+/attachment_upload/static/attachment_thumbs
