@@ -2,11 +2,11 @@ define([
     'jquery', 'underscore', 'backbone', 'specifyapi', 'schema', 'specifyform', 'cs!businessrules',
     'datamodelview', 'errorview', 'resourceview', 'othercollectionview', 'localizeform',
     'beautify-html', 'navigation', 'cs!express-search', 'cs!welcomeview', 'cs!stored_query',
-    'cs!domain', 'notfoundview', 'text!context/user.json!noinline', 'jquery-bbq'
+    'attachmentsview', 'cs!domain', 'notfoundview', 'text!context/user.json!noinline', 'jquery-bbq'
 ], function(
     $, _, Backbone, specifyapi, schema, specifyform, businessRules, datamodelview, ErrorView,
     ResourceView, OtherCollectionView, localizeForm, beautify, navigation, esearch, WelcomeView,
-    StoredQueryView, domain, NotFoundView, userJSON) {
+    StoredQueryView, AttachmentsView, domain, NotFoundView, userJSON) {
     "use strict";
 
     // the exported interface
@@ -59,6 +59,7 @@ define([
                 'recordset/:id/'        : 'recordSet',
                 'view/:model/new/'      : 'newResource',
                 'view/:model/:id/'      : 'view',
+                'attachments/'          : 'attachments',
                 'viewashtml/'           : 'viewashtml',
                 'datamodel/:model/'     : 'datamodel',
                 'datamodel/'            : 'datamodel',
@@ -75,6 +76,11 @@ define([
             welcome: function() {
                 setCurrentView(new WelcomeView());
                 window.document.title = 'Welcome | Specify WebApp';
+            },
+
+            attachments: function() {
+                setCurrentView(new AttachmentsView());
+                window.document.title = 'Attachments | Specify WebApp';
             },
 
             storedQuery: function(id) {
