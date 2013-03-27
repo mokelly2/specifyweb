@@ -239,6 +239,8 @@ div.results div {
     list-style-type: none;
 }
 
-.spqueryfield span {
-    margin: 0 10px 0 10px;
+.spqueryfield .field-operation,
+.spqueryfield .field-label-field,
+.spqueryfield .field-label-datepart {
+    margin-right: 10px;
 }
