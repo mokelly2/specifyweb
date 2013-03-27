@@ -64,18 +64,26 @@ define([
         }
     });
 
-    var opInfo = [
-        {opName: 'Like'},
-        {opName: '='},
-        {opName: '>'},
-        {opName: '<'},
-        {opName: '>='},
-        {opName: '<='},
-        {opName: 'True', input: null},
-        {opName: 'False', input: null},
-        {opName: 'Does not matter', input: null},
+    var types = {
+        strings: ['text', 'java.lang.String'],
+        numbers: ['java.lang.Integer', 'java.lang.Long', 'java.lang.Byte',
+                  'java.lang.Short', 'java.lang.Float', 'java.lang.Double', 'java.math.BigDecimal'],
+        dates: ['java.util.Calendar', 'java.util.Date', 'java.sql.Timestamp'],
+        bools: ['java.lang.Boolean']
+    };
 
-        {opName: 'Between',
+    var opInfo = [
+        {opName: 'Like', types: ['strings']},
+        {opName: '=', types: ['strings', 'numbers', 'dates']},
+        {opName: '>', types: ['numbers', 'dates']},
+        {opName: '<', types: ['numbers', 'dates']},
+        {opName: '>=', types: ['numbers']},
+        {opName: '<=', types: ['numbers']},
+        {opName: 'True', types: ['bools'], input: null},
+        {opName: 'False', types: ['bools'], input: null},
+        {opName: 'Does not matter', types: ['bools'], input: null},
+
+        {opName: 'Between', types: ['strings', 'dates', 'numbers'],
          input: '<input type="text"> and <input type="text">',
          getValue: function() {
              return _.map(this.$('input'), function(input) { return $(input).val(); }).join(',');
@@ -86,11 +94,11 @@ define([
          }
         },
 
-        {opName: 'In'},
-        {opName: 'Contains'},
-        {opName: 'Empty', input: null},
-        {opName: 'True or Null', input: null},
-        {opName: 'True or False', input: null}
+        {opName: 'In', types: ['strings', 'numbers']},
+        {opName: 'Contains', types: ['strings']},
+        {opName: 'Empty', types: ['strings', 'bools', 'dates', 'numbers'], input: null},
+        {opName: 'True or Null', types: ['bools'], input: null},
+        {opName: 'False or Null', types: ['bools'], input: null}
     ];
 
     var FieldInputUIByOp = _.map(opInfo, function(extras) { return FieldInputUI.extend(extras); });
@@ -171,6 +179,17 @@ define([
                 this.value = this.spqueryfield.get('startvalue');
             }
         },
+        getTypeForOp: function() {
+            if (this.datePart) return 'numbers';
+            var field = _.last(this.joinPath);
+            if (field.model.name === 'CollectionObject' &&
+                field.name === 'catalogNumber') return 'numbers';
+
+            for (var type in types) {
+                if (_(types[type]).contains(field.type)) return type;
+            }
+            return null;
+        },
         render: function() {
             this.$el.append('<span class="field-label">',
                             '<select class="field-select">',
@@ -202,8 +221,12 @@ define([
                     .show()
                     .append('<option>Select Op...</option>');
 
+            var type = this.getTypeForOp();
+
             _.each(opInfo, function(info, i) {
-                $('<option>', {value: i}).text(info.opName).appendTo(opSelect);
+                if (_(info.types).contains(type)) {
+                    $('<option>', {value: i}).text(info.opName).appendTo(opSelect);
+                }
             }, this);
         },
         setupDatePartSelect: function() {
