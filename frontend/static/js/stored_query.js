@@ -55,7 +55,8 @@ define([
             this.$('input').val(value);
         },
         render: function() {
-            $('<a class="field-operation">').text(this.opName).appendTo(this.el);
+            var text = (this.options.negate ? 'Not ' : '') + this.opName;
+            $('<a class="field-operation">').text(text).appendTo(this.el);
             this.input && $(this.input).appendTo(this.el);
             return this;
         },
@@ -159,7 +160,8 @@ define([
     var AddFieldUI = Backbone.View.extend({
         events: {
             'change .field-select': 'fieldSelected',
-            'change .op-select': 'opSelected',
+            'change .op-select.op-type': 'opSelected',
+            'change .op-select.op-negate': 'opNegateSelected',
             'change .datepart-select': 'datePartSelected',
             'click .field-operation': 'backUpToOperation',
             'click .field-label-field': 'backUpToField',
@@ -177,6 +179,7 @@ define([
                 this.datePart = fs.datePart;
                 this.operation = this.spqueryfield.get('operstart');
                 this.value = this.spqueryfield.get('startvalue');
+                this.negate = this.spqueryfield.get('isnot');
             }
         },
         getTypeForOp: function() {
@@ -193,8 +196,13 @@ define([
         render: function() {
             this.$el.append('<span class="field-label">',
                             '<select class="field-select">',
-                            '<select class="op-select">',
+                            '<select class="op-select op-negate">',
+                            '<select class="op-select op-type">',
                             '<select class="datepart-select">');
+            this.$('.op-negate').append('<option value="undefined">Negate?</option>',
+                                        '<option value="no">No</option>',
+                                        '<option value="yes">Yes</option>');
+
             this.update();
             this.inputUI && this.inputUI.setValue(this.value);
             return this;
@@ -214,15 +222,13 @@ define([
             }, this);
         },
         setupOpSelect: function() {
+            this.operation = this.negate = undefined;
             this.$('.field-select, .datepart-select').hide();
             this.$('.field-input').remove();
-            var opSelect = this.$('.op-select')
-                    .empty()
-                    .show()
-                    .append('<option>Select Op...</option>');
-
+            this.$('.op-select').show();
+            this.$('.op-negate').val('undefined');
+            var opSelect = this.$('.op-type').empty().append('<option>Select Op...</option>');
             var type = this.getTypeForOp();
-
             _.each(opInfo, function(info, i) {
                 if (_(info.types).contains(type)) {
                     $('<option>', {value: i}).text(info.opName).appendTo(opSelect);
@@ -270,7 +276,8 @@ define([
         fieldComplete: function() {
             this.$('.field-select, .datepart-select, .op-select').hide();
             this.inputUI = new (FieldInputUIByOp[this.operation])({
-                el: $('<span class="field-input">')
+                el: $('<span class="field-input">'),
+                negate: this.negate
             });
             this.inputUI.render().$el.appendTo(this.el);
             this.inputUI.on('changed', this.valueChanged, this);
@@ -279,8 +286,12 @@ define([
             this.trigger('completed', this);
         },
         opSelected: function() {
-            this.operation = this.$('.op-select').val();
-            this.update();
+            this.operation = this.$('.op-type').val();
+            _(this.negate).isUndefined() || this.update();
+        },
+        opNegateSelected: function() {
+            this.negate = this.$('.op-negate').val() === 'yes';
+            _(this.operation).isUndefined() || this.update();
         },
         datePartSelected: function() {
             this.datePart = this.$('.datepart-select').val();
@@ -298,7 +309,7 @@ define([
             this.update();
         },
         backUpToOperation: function() {
-            this.value = this.operation = undefined;
+            this.value = this.operation = this.negate = undefined;
             this.update();
         },
         valueChanged: function(inputUI, value) {
@@ -332,7 +343,7 @@ define([
                 stringid: this.makeStringId(tableList),
                 fieldname: _.last(this.joinPath).name,
                 isdisplay: true,
-                isnot: false
+                isnot: this.negate
             });
         }
     });
