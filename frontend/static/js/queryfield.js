@@ -158,11 +158,14 @@ define(['jquery', 'underscore', 'backbone', 'schema'], function($, _, Backbone, 
                     .show()
                     .append('<option>Select Field...</option>');
 
-            _.each(this.table.getAllFields(), function(field) {
-                $('<option>', {value: field.name})
-                    .text(field.getLocalizedName())
-                    .appendTo(fieldSelect);
-            }, this);
+            _.chain(this.table.getAllFields())
+                .reject(function(field) { return field.isHidden(); })
+                .sortBy(function(field) { return field.getLocalizedName(); })
+                .each(function(field) {
+                    $('<option>', {value: field.name})
+                        .text(field.getLocalizedName())
+                        .appendTo(fieldSelect);
+                });
         },
         setupOpSelect: function() {
             this.operation = this.negate = undefined;
