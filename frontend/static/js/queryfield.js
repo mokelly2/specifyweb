@@ -1,4 +1,4 @@
-define(['jquery', 'underscore', 'backbone', 'schema'], function($, _, Backbone, schema) {
+define(['jquery', 'underscore', 'backbone', 'schema', 'cs!domain'], function($, _, Backbone, schema, domain) {
     "use strict";
 
     var STRINGID_RE = /^([^\.]*)\.([^\.]*)\.(.*)$/;
@@ -108,7 +108,8 @@ define(['jquery', 'underscore', 'backbone', 'schema'], function($, _, Backbone, 
             'change .datepart-select': 'datePartSelected',
             'click .field-operation': 'backUpToOperation',
             'click .field-label-field': 'backUpToField',
-            'click .field-label-datepart': 'backUpToDatePart'
+            'click .field-label-datepart': 'backUpToDatePart',
+            'click .field-label-treerank': 'backUpToTreeRank'
         },
         initialize: function(options) {
             this.spqueryfield = options.spqueryfield;
@@ -118,7 +119,9 @@ define(['jquery', 'underscore', 'backbone', 'schema'], function($, _, Backbone, 
             } else {
                 var fs = stringIdToFieldSpec(this.spqueryfield.get('stringid'));
                 this.table = fs.table;
-                this.joinPath = fs.joinPath.concat(this.table.getField(fs.fieldName));
+                var field = this.table.getField(fs.fieldName);
+                field || (this.treeRank = fs.fieldName);
+                this.joinPath = field ? fs.joinPath.concat(field) : fs.joinPath;
                 this.datePart = fs.datePart;
                 this.operation = this.spqueryfield.get('operstart');
                 this.value = this.spqueryfield.get('startvalue');
@@ -127,6 +130,7 @@ define(['jquery', 'underscore', 'backbone', 'schema'], function($, _, Backbone, 
         },
         getTypeForOp: function() {
             if (this.datePart) return 'numbers';
+            if (this.treeRank) return 'strings';
             var field = _.last(this.joinPath);
             if (field.model.name === 'CollectionObject' &&
                 field.name === 'catalogNumber') return 'numbers';
@@ -150,13 +154,11 @@ define(['jquery', 'underscore', 'backbone', 'schema'], function($, _, Backbone, 
             this.inputUI && this.inputUI.setValue(this.value);
             return this;
         },
+
         setupFieldSelect: function() {
             this.$('.op-select, .datepart-select').hide();
             this.$('.field-input').remove();
-            var fieldSelect = this.$('.field-select')
-                    .empty()
-                    .show()
-                    .append('<option>Select Field...</option>');
+            var fieldSelect = this.$('.field-select').empty().append('<option>Select Field...</option>');
 
             _.chain(this.table.getAllFields())
                 .reject(function(field) { return field.isHidden(); })
@@ -166,9 +168,30 @@ define(['jquery', 'underscore', 'backbone', 'schema'], function($, _, Backbone, 
                         .text(field.getLocalizedName())
                         .appendTo(fieldSelect);
                 });
+
+            var getTreeDef = domain.getTreeDef(this.table.name);
+            if (getTreeDef) {
+                this.addTreeLevelsToFieldSelect(getTreeDef);
+            } else {
+                fieldSelect.show();
+            }
+        },
+        addTreeLevelsToFieldSelect: function(getTreeDef) {
+            var fieldSelect = this.$('.field-select');
+            var optGroup = $('<optgroup label="Tree Ranks">').appendTo(fieldSelect);
+
+            getTreeDef.pipe(function(treeDef) {
+                return treeDef.rget('treedefitems', true);
+            }).done(function(treeDefItems) {
+                treeDefItems.each(function(item) {
+                    $('<option>', {value: 'treerank-' + item.get('name')})
+                        .text(item.get('name'))
+                        .appendTo(optGroup);
+                });
+                fieldSelect.show();
+            });
         },
         setupOpSelect: function() {
-            this.operation = this.negate = undefined;
             this.$('.field-select, .datepart-select').hide();
             this.$('.field-input').remove();
             this.$('.op-select').show();
@@ -194,11 +217,18 @@ define(['jquery', 'underscore', 'backbone', 'schema'], function($, _, Backbone, 
             _.chain(this.joinPath)
                 .invoke('getLocalizedName')
                 .each(function(fieldName) { $('<a class="field-label-field">').text(fieldName).appendTo(fieldLabel); });
+            this.treeRank && $('<a class="field-label-treerank">').text(this.treeRank).appendTo(fieldLabel);
             this.datePart && $('<a class="field-label-datepart">').text('(' + this.datePart + ')').appendTo(fieldLabel);
         },
         fieldSelected: function() {
-            var field = this.table.getField(this.$('.field-select').val());
-            this.joinPath.push(field);
+            var fieldName = this.$('.field-select').val();
+            var treeRankMatch = /^treerank-(.*)/.exec(fieldName);
+            if (treeRankMatch) {
+                this.treeRank = treeRankMatch[1];
+            } else {
+                var field = this.table.getField(fieldName);
+                this.joinPath.push(field);
+            }
             this.update();
         },
         update: function() {
@@ -207,17 +237,27 @@ define(['jquery', 'underscore', 'backbone', 'schema'], function($, _, Backbone, 
             if (!field) {
                 this.table = this.model;
                 this.setupFieldSelect();
-            } else if (field.isRelationship) {
-                this.table = field.getRelatedModel();
-                this.setupFieldSelect();
-            } else if (_.isUndefined(this.datePart) &&
-                       _(['java.util.Date', 'java.util.Calendar']).contains(field.type)) {
-                this.setupDatePartSelect();
-            } else if (_.isUndefined(this.operation)) {
-                this.setupOpSelect();
-            } else {
-                this.fieldComplete();
+                return;
             }
+            if (!this.treeRank) {
+
+                if (field.isRelationship) {
+                    this.table = field.getRelatedModel();
+                    this.setupFieldSelect();
+                    return;
+                }
+                if (_.isUndefined(this.datePart) &&
+                    _(['java.util.Date', 'java.util.Calendar']).contains(field.type)) {
+                    this.setupDatePartSelect();
+                    return;
+                }
+            }
+
+            if (_.isUndefined(this.operation)) {
+                this.setupOpSelect();
+                return;
+            }
+            this.fieldComplete();
         },
         fieldComplete: function() {
             this.$('.field-select, .datepart-select, .op-select').hide();
@@ -249,11 +289,15 @@ define(['jquery', 'underscore', 'backbone', 'schema'], function($, _, Backbone, 
         backUpToField: function(evt) {
             var index = _(this.$('.field-label-field')).indexOf(evt.currentTarget);
             this.joinPath = _(this.joinPath).first(index);
-            this.value = this.operation = this.datePart = undefined;
+            this.value = this.operation = this.datePart = this.treeRank = undefined;
             this.update();
         },
         backUpToDatePart: function() {
             this.value = this.operation = this.datePart = undefined;
+            this.update();
+        },
+        backUpToTreeRank: function() {
+            this.value = this.operation = this.treeRank = undefined;
             this.update();
         },
         backUpToOperation: function() {
@@ -266,7 +310,7 @@ define(['jquery', 'underscore', 'backbone', 'schema'], function($, _, Backbone, 
         },
         makeTableList: function() {
             var first = [this.model.tableId];
-            var rest =  _.chain(this.joinPath).initial().map(function(field) {
+            var rest =  _.chain(this.joinPath).initial(this.treeRank ? 0 : 1).map(function(field) {
                 var relatedModel = field.getRelatedModel();
                 return relatedModel.name.toLowerCase() === field.name.toLowerCase() ?
                     relatedModel.tableId : (relatedModel.tableId + '-' + field.name.toLowerCase());
@@ -274,26 +318,25 @@ define(['jquery', 'underscore', 'backbone', 'schema'], function($, _, Backbone, 
             return first.concat(rest).join(',');
         },
         makeStringId: function(tableList) {
-            var fieldName = _.last(this.joinPath).name;
+            var fieldName = this.treeRank || _.last(this.joinPath).name;
             if (this.datePart) {
                 fieldName += 'Numeric' + this.datePart;
             }
-            return [
-                tableList,
-                this.table.name.toLowerCase(),
-                fieldName
-            ].join('.');
+            return [tableList, this.table.name.toLowerCase(), fieldName];
         },
         updateSpQueryField: function() {
             var tableList = this.makeTableList();
-            this.spqueryfield.set({
+            var stringId = this.makeStringId(tableList);
+            var attrs = {
                 operstart: this.operation,
                 tablelist: tableList,
-                stringid: this.makeStringId(tableList),
-                fieldname: _.last(this.joinPath).name,
+                stringid: stringId.join('.'),
+                fieldname: _.last(stringId),
                 isdisplay: true,
                 isnot: this.negate
-            });
+            };
+            console.log(attrs);
+            this.spqueryfield.set(attrs);
         }
     });
 });

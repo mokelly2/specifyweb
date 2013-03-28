@@ -241,6 +241,7 @@ div.results div {
 
 .spqueryfield .field-operation,
 .spqueryfield .field-label-field,
-.spqueryfield .field-label-datepart {
+.spqueryfield .field-label-datepart,
+.spqueryfield .field-label-treerank {
     margin-right: 10px;
 }
