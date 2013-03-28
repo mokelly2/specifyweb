@@ -21,8 +21,7 @@ define(['jquery', 'underscore', 'backbone', 'schema', 'cs!domain'], function($, 
             node = table;
         });
 
-        var field = node.getField(fieldName);
-        return _.extend({joinPath: joinPath, table: node, field: field}, extractDatePart(fieldName));
+        return _.extend({joinPath: joinPath, table: node}, extractDatePart(fieldName));
     }
 
     var DATE_PART_RE = /(.*)((NumericDay)|(NumericMonth)|(NumericYear))$/;
@@ -109,7 +108,8 @@ define(['jquery', 'underscore', 'backbone', 'schema', 'cs!domain'], function($, 
             'click .field-operation': 'backUpToOperation',
             'click .field-label-field': 'backUpToField',
             'click .field-label-datepart': 'backUpToDatePart',
-            'click .field-label-treerank': 'backUpToTreeRank'
+            'click .field-label-treerank': 'backUpToTreeRank',
+            'click .field-trash': 'removeField'
         },
         initialize: function(options) {
             this.spqueryfield = options.spqueryfield;
@@ -127,6 +127,7 @@ define(['jquery', 'underscore', 'backbone', 'schema', 'cs!domain'], function($, 
                 this.value = this.spqueryfield.get('startvalue');
                 this.negate = this.spqueryfield.get('isnot');
             }
+            this.options.parentView.on('positionschanged', this.positionChange, this);
         },
         getTypeForOp: function() {
             if (this.datePart) return 'numbers';
@@ -141,11 +142,18 @@ define(['jquery', 'underscore', 'backbone', 'schema', 'cs!domain'], function($, 
             return null;
         },
         render: function() {
-            this.$el.append('<span class="field-label">',
-                            '<select class="field-select">',
-                            '<select class="op-select op-negate">',
-                            '<select class="op-select op-type">',
-                            '<select class="datepart-select">');
+            this.$el.append(
+                '<button class="field-trash">',
+                '<span class="field-label">',
+                '<select class="field-select">',
+                '<select class="op-select op-negate">',
+                '<select class="op-select op-type">',
+                '<select class="datepart-select">'
+            );
+            this.$('button.field-trash').button({
+                icons: { primary: "ui-icon-trash" },
+                text: false
+            });
             this.$('.op-negate').append('<option value="undefined">Negate?</option>',
                                         '<option value="no">No</option>',
                                         '<option value="yes">Yes</option>');
@@ -154,7 +162,12 @@ define(['jquery', 'underscore', 'backbone', 'schema', 'cs!domain'], function($, 
             this.inputUI && this.inputUI.setValue(this.value);
             return this;
         },
-
+        positionChange: function() {
+            var position = this.$el.parent().find('li').index(this.el);
+            this.$('.position').remove();
+            $('<span class="position">').text(position).appendTo(this.el);
+            this.spqueryfield.set('position', position);
+        },
         setupFieldSelect: function() {
             this.$('.op-select, .datepart-select').hide();
             this.$('.field-input').remove();
@@ -287,7 +300,7 @@ define(['jquery', 'underscore', 'backbone', 'schema', 'cs!domain'], function($, 
             this.update();
         },
         backUpToField: function(evt) {
-            var index = _(this.$('.field-label-field')).indexOf(evt.currentTarget);
+            var index = this.$('.field-label-field').index(evt.currentTarget);
             this.joinPath = _(this.joinPath).first(index);
             this.value = this.operation = this.datePart = this.treeRank = undefined;
             this.update();
@@ -335,8 +348,11 @@ define(['jquery', 'underscore', 'backbone', 'schema', 'cs!domain'], function($, 
                 isdisplay: true,
                 isnot: this.negate
             };
-            console.log(attrs);
             this.spqueryfield.set(attrs);
+        },
+        removeField: function() {
+            this.trigger('remove', this, this.spqueryfield);
+            this.remove();
         }
     });
 });

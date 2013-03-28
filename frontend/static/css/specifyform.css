@@ -235,6 +235,15 @@ div.results div {
     overflow: scroll;
 }
 
+.spqueryfields {
+    padding: 0;
+}
+
+.field-add {
+    display: block;
+    padding-bottom: 8px;
+}
+
 .spqueryfield {
     list-style-type: none;
 }
@@ -242,6 +251,12 @@ div.results div {
 .spqueryfield .field-operation,
 .spqueryfield .field-label-field,
 .spqueryfield .field-label-datepart,
-.spqueryfield .field-label-treerank {
+.spqueryfield .field-label-treerank,
+.spqueryfield button {
     margin-right: 10px;
+}
+
+.spqueryfield button {
+    vertical-align: middle;
+    padding-bottom: 8px;
 }

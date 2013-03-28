@@ -12,7 +12,6 @@ define([
         initialize: function(options) {
             this.fields = options.fields;
             this.model = options.model;
-            this.fieldUIs = options.fieldUIs;
             this.initResults = options.results;
         },
         render: function() {
@@ -35,8 +34,8 @@ define([
                     id: result[0]
                 });
                 var href = resource.viewUrl();
-                _.each(self.fieldUIs, function(fieldUI) {
-                    var value = result[fieldToCol(fieldUI.spqueryfield)];
+                self.fields.each(function(field) {
+                    var value = result[fieldToCol(field)];
                     // var field = fieldUI.fieldSpec.field;
                     // if (field) {
                     //     value = fieldformat(field, value);
@@ -60,8 +59,9 @@ define([
 
     return Backbone.View.extend({
         events: {
-            'click :button': 'search',
-            'click .field-add': 'addField'
+            'click .query-execute': 'search',
+            'click .field-add': 'addField',
+            'click .abandon-changes': function() { this.trigger('redisplay'); }
         },
         initialize: function(options) {
             var self = this;
@@ -73,29 +73,38 @@ define([
         render: function() {
             var self = this;
             self.$el.append($('<h2>').text(self.query.get('name')));
-            var ul = $('<ul>').appendTo(self.el);
-            var button = $('<input type="button" value="Query">').appendTo(self.el);
-            self.query.on('saverequired subsaverequired', button.hide, button);
+            var ul = $('<ul class="spqueryfields">').appendTo(self.el);
+            $('<button class="field-add">').button({
+                icons: { primary: 'ui-icon-plus' },
+                text: false
+            }).appendTo(self.el);
+            this.$el.append('<input type="button" value="Query" class="query-execute">',
+                            '<input type="button" value="Abandon Changes" class="abandon-changes" disabled>');
+            self.query.on('saverequired', this.saveRequired, this);
             self.saveButton.render().$el.appendTo(self.el);
 
             self.query.rget('fields', true).done(function(spqueryfields) {
                 self.fields = spqueryfields;
-                self.fieldUIs = spqueryfields.map(function(spqueryfield) {
-                    return new QueryFieldUI({
+                spqueryfields.each(function(spqueryfield) {
+                    var ui = new QueryFieldUI({
+                        parentView: self,
                         model: self.model,
                         spqueryfield: spqueryfield,
                         el: $('<li class="spqueryfield">')
                     });
+                    ui.render().$el.appendTo(ul);
+                    ui.on('remove', function(ui, field) { self.fields.remove(field); });
                 });
-
-                _.each(self.fieldUIs, function(fieldUI) { ul.append(fieldUI.render().el); });
-                ul.append('<li class="spqueryfield"><a class="field-add">Add Field...</a></li>');
-
+                ul.sortable({stop: function () { self.trigger('positionschanged'); }});
             });
 
             $('<table class="results" width="100%"></div>').appendTo(self.el);
 
             return self;
+        },
+        saveRequired: function() {
+            this.$('.query-execute').prop('disabled', true);
+            this.$('.abandon-changes').prop('disabled', false);
         },
         addField: function() {
             var newField = new (api.Resource.forModel('spqueryfield'))();
@@ -105,12 +114,14 @@ define([
             newField.set({position: position, sorttype: 0, query: this.query.url()});
 
             var addFieldUI = new QueryFieldUI({
+                parentView: this,
                 model: this.model,
                 el: $('<li class="spqueryfield">'),
                 spqueryfield: newField
             });
-            addFieldUI.render().$el.insertBefore(this.$('.field-add'));
+            this.$('ul').append(addFieldUI.render().el).sortable('refresh');
             addFieldUI.on('completed', function() { this.fields.add(newField); }, this);
+            this.trigger('positionschanged');
         },
         renderHeader: function() {
             var header = $('<tr>');
@@ -142,7 +153,6 @@ define([
                     viewOptions: {
                         fields: self.fields,
                         model: self.model,
-                        fieldUIs: self.fieldUIs,
                         results: results
                     },
                     ajaxUrl: ajaxUrl

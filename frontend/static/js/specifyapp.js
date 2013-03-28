@@ -78,12 +78,14 @@ define([
             },
 
             storedQuery: function(id) {
-                var query = new (specifyapi.Resource.forModel('spquery'))({ id: id });
                 function doIt() {
-                    setCurrentView(new StoredQueryView({ query: query }));
-                    app.currentView.on('redisplay', doIt);
+                    var query = new (specifyapi.Resource.forModel('spquery'))({ id: id });
+                    query.fetch().fail(handleError).done(function() {
+                        setCurrentView(new StoredQueryView({ query: query }));
+                        app.currentView.on('redisplay', doIt);
+                    });
                 }
-                query.fetch().fail(handleError).done(doIt);
+                doIt();
             },
 
             // this view executes an express search and displays the results
