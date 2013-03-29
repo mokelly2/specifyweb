@@ -108,8 +108,7 @@ define(['jquery', 'underscore', 'backbone', 'schema', 'cs!domain'], function($, 
             'click .field-operation': 'backUpToOperation',
             'click .field-label-field': 'backUpToField',
             'click .field-label-datepart': 'backUpToDatePart',
-            'click .field-label-treerank': 'backUpToTreeRank',
-            'click .field-trash': 'removeField'
+            'click .field-label-treerank': 'backUpToTreeRank'
         },
         initialize: function(options) {
             this.spqueryfield = options.spqueryfield;
@@ -143,7 +142,6 @@ define(['jquery', 'underscore', 'backbone', 'schema', 'cs!domain'], function($, 
         },
         render: function() {
             this.$el.append(
-                '<button class="field-trash">',
                 '<span class="field-label">',
                 '<select class="field-select">',
                 '<select class="op-select op-negate">',
@@ -163,6 +161,12 @@ define(['jquery', 'underscore', 'backbone', 'schema', 'cs!domain'], function($, 
             return this;
         },
         positionChange: function() {
+            if (this.$el.parent().is('.spqueryfield-delete')) {
+                this.trigger('remove', this, this.spqueryfield);
+                this.remove();
+                return;
+            }
+
             var position = this.$el.parent().find('li').index(this.el);
             this.$('.position').remove();
             $('<span class="position">').text(position).appendTo(this.el);
@@ -349,10 +353,6 @@ define(['jquery', 'underscore', 'backbone', 'schema', 'cs!domain'], function($, 
                 isnot: this.negate
             };
             this.spqueryfield.set(attrs);
-        },
-        removeField: function() {
-            this.trigger('remove', this, this.spqueryfield);
-            this.remove();
         }
     });
 });

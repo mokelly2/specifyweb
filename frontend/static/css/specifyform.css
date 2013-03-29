@@ -239,11 +239,6 @@ div.results div {
     padding: 0;
 }
 
-.field-add {
-    display: block;
-    padding-bottom: 8px;
-}
-
 .spqueryfield {
     list-style-type: none;
 }
@@ -259,4 +254,10 @@ div.results div {
 .spqueryfield button {
     vertical-align: middle;
     padding-bottom: 8px;
+}
+
+.spqueryfield-delete {
+    height: 20px;
+    overflow: hidden;
+    border-top: solid 1px;
 }

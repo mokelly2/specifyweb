@@ -73,11 +73,9 @@ define([
         render: function() {
             var self = this;
             self.$el.append($('<h2>').text(self.query.get('name')));
-            var ul = $('<ul class="spqueryfields">').appendTo(self.el);
-            $('<button class="field-add">').button({
-                icons: { primary: 'ui-icon-plus' },
-                text: false
-            }).appendTo(self.el);
+            var ul = $('<ul class="spqueryfields sortable">').appendTo(self.el);
+            $('<a class="field-add">').text('New field...').appendTo(self.el);
+            $('<ul class="spqueryfield-delete sortable">').appendTo(self.el);
             this.$el.append('<input type="button" value="Query" class="query-execute">',
                             '<input type="button" value="Abandon Changes" class="abandon-changes" disabled>');
             self.query.on('saverequired', this.saveRequired, this);
@@ -95,7 +93,12 @@ define([
                     ui.render().$el.appendTo(ul);
                     ui.on('remove', function(ui, field) { self.fields.remove(field); });
                 });
-                ul.sortable({stop: function () { self.trigger('positionschanged'); }});
+                self.$('ul.sortable').sortable({
+                    connectWith: 'ul.sortable',
+                    update: function (event, ui) {
+                        self.trigger('positionschanged');
+                    }
+                });
             });
 
             $('<table class="results" width="100%"></div>').appendTo(self.el);
@@ -108,10 +111,7 @@ define([
         },
         addField: function() {
             var newField = new (api.Resource.forModel('spqueryfield'))();
-            var position = this.fields.chain()
-                    .map(function(field) { return field.get('position'); })
-                    .sort().last().value() + 1;
-            newField.set({position: position, sorttype: 0, query: this.query.url()});
+            newField.set({sorttype: 0, query: this.query.url()});
 
             var addFieldUI = new QueryFieldUI({
                 parentView: this,
@@ -119,7 +119,7 @@ define([
                 el: $('<li class="spqueryfield">'),
                 spqueryfield: newField
             });
-            this.$('ul').append(addFieldUI.render().el).sortable('refresh');
+            this.$('.spqueryfields').append(addFieldUI.render().el).sortable('refresh');
             addFieldUI.on('completed', function() { this.fields.add(newField); }, this);
             this.trigger('positionschanged');
         },
