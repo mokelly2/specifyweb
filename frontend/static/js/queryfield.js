@@ -101,6 +101,7 @@ define(['jquery', 'underscore', 'backbone', 'schema', 'cs!domain'], function($, 
 
     return Backbone.View.extend({
         events: {
+            'change .field-show': 'fieldShowChanged',
             'change .field-select': 'fieldSelected',
             'change .op-select.op-type': 'opSelected',
             'change .op-select.op-negate': 'opNegateSelected',
@@ -142,12 +143,16 @@ define(['jquery', 'underscore', 'backbone', 'schema', 'cs!domain'], function($, 
         },
         render: function() {
             this.$el.append(
+                '<input type="checkbox" class="field-show" id="' + this.cid + '-show">',
+                '<label for="' + this.cid + '-show" class="ui-icon ui-icon-lightbulb"></label>',
                 '<span class="field-label">',
                 '<select class="field-select">',
                 '<select class="op-select op-negate">',
                 '<select class="op-select op-type">',
                 '<select class="datepart-select">'
             );
+            this.$('#' + this.cid + '-show').prop('checked', this.spqueryfield.get('isdisplay')).button();
+
             this.$('button.field-trash').button({
                 icons: { primary: "ui-icon-trash" },
                 text: false
@@ -171,6 +176,11 @@ define(['jquery', 'underscore', 'backbone', 'schema', 'cs!domain'], function($, 
             this.$('.position').remove();
             $('<span class="position">').text(position).appendTo(this.el);
             this.spqueryfield.set('position', position);
+        },
+        fieldShowChanged: function() {
+            var val = this.$('.field-show').prop('checked');
+            this.spqueryfield.set('isdisplay', val);
+            return true;
         },
         setupFieldSelect: function() {
             this.$('.op-select, .datepart-select').hide();
